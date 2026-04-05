@@ -1,0 +1,38 @@
+#cloud-config
+disable_root: true
+preserve_hostname: false
+ssh_pwauth: false
+
+users:
+  - name: wms
+    groups: wheel
+    lock_passwd: false
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJOOnLVSlbfzPKjwTzI3h+RwuEkauKkOYjk1eOX30ifZ
+
+chpasswd:
+  expire: false
+  users:
+    - { name: wms, password: wms, type: text }
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - epel-release
+  - tmux
+  - vim
+  - qemu-guest-agent
+
+write_files:
+  - path: /etc/sudoers.d/10-default-nopasswd
+    content: |
+      %Default ALL=(ALL) NOPASSWD:ALL
+    owner: root:root
+    permissions: "0440"
+
+runcmd:
+  - systemctl daemon-reload
+  - update-ca-trust
+  - systemctl enable qemu-guest-agent --now
+  - dnf install -y neovim
