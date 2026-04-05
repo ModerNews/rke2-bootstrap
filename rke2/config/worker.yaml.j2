@@ -1,0 +1,12 @@
+# /etc/rancher/rke2/config.yaml
+# Worker nodes
+
+server: "https://{{ rke2_vip }}:9345"
+token: "{{ rke2_token }}"
+
+node-ip: "{{ rke2_node_ip }}"
+
+cluster-domain: "{{ rke2_cluster_domain }}"
+
+node-label:
+  - "role=worker"
