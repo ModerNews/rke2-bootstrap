@@ -1,0 +1,31 @@
+# /etc/rancher/rke2/config.yaml
+# Joining control plane nodes (K8sToolsMasterRKE-2 and -3)
+# Deploy AFTER master-init node is up and keepalived VIP is live
+
+server: "https://{{ rke2_vip }}:9345"
+token: "{{ rke2_token }}"
+
+tls-san:
+  - "{{ rke2_api_fqdn }}"
+  - "{{ rke2_vip }}"
+{% for ip in rke2_master_ips %}
+  - "{{ ip }}"
+{% endfor %}
+
+node-ip: "{{ rke2_node_ip }}"
+advertise-address: "{{ rke2_node_ip }}"
+
+cni: none
+disable-kube-proxy: true
+cluster-domain: "{{ rke2_cluster_domain }}"
+cluster-cidr: "{{ rke2_cluster_cidr }}"
+service-cidr: "{{ rke2_service_cidr }}"
+
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 10
+
+disable:
+  - rke2-ingress-nginx
+
+node-taint:
+  - "node-role.kubernetes.io/control-plane=true:NoSchedule"
