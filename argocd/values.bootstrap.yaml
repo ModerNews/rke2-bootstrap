@@ -1,0 +1,188 @@
+# Stub ArgoCD values — used by Ansible for initial installation
+# Applied before bootstrap root; intentionally minimal
+# Wave 4 (argocd.yaml) replaces this with full values.yaml from infra-helm
+
+grafanaDashboards:
+  enabled: false
+
+repoServerPVCs:
+  enabled: false
+
+# No vaultSecrets — VSO is not yet installed
+
+argo-cd:
+  configs:
+    cm:
+      admin.enabled: true
+      # OIDC omitted — SSO not available during bootstrap
+    params:
+      server.insecure: true
+    secret:
+      # Ansible must supply admin password at install time via:
+      #   --set argo-cd.configs.secret.argocdServerAdminPassword=<bcrypt>
+      createSecret: true
+
+  controller:
+    replicas: 1
+    pdb:
+      enabled: false
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+    vpa:
+      enabled: false
+
+  dex:
+    enabled: false
+
+  redis:
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+
+  server:
+    replicas: 1
+    autoscaling:
+      enabled: false
+    pdb:
+      enabled: false
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+    ingress:
+      enabled: false
+
+  repoServer:
+    replicas: 1
+    autoscaling:
+      enabled: false
+    pdb:
+      enabled: false
+    existingVolumes: {}
+    useEphemeralHelmWorkingDir: true
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+
+  applicationSet:
+    replicas: 1
+    pdb:
+      enabled: false
+    metrics:
+      enabled: false
+      serviceMonitor:
+        enabled: false
+
+  notifications:
+    enabled: false
+
+  extraObjects:
+    - apiVersion: v1
+      kind: Secret
+      metadata:
+        name: tools-k8s-internal-wmsdev-pl
+        namespace: argocd
+        labels:
+          argocd.argoproj.io/secret-type: cluster
+          infrastructure.wmsdev.pl/cluster: tools.k8s.internal.wmsdev.pl
+          infrastructure.wmsdev.pl/cluster-group: prod
+          bootstrap-stage: enrolling
+      type: Opaque
+      stringData:
+        name: tools.k8s.internal.wmsdev.pl
+        server: https://kubernetes.default.svc
+        config: '{"tlsClientConfig":{"insecure":false}}'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: system
+        namespace: argocd
+      spec:
+        description: Cluster infrastructure — Cilium, Ceph CSI, CephFS CSI, Ingress
+        sourceRepos:
+          - https://github.com/WMS-DEV/infra-helm.git
+        destinations:
+          - namespace: '*'
+            server: https://kubernetes.default.svc
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: platform
+        namespace: argocd
+      spec:
+        description: Platform tooling — Bootstrap, ArgoCD, Vault
+        sourceRepos:
+          - https://github.com/WMS-DEV/infra-helm.git
+        destinations:
+          - namespace: '*'
+            server: https://kubernetes.default.svc
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: ci
+        namespace: argocd
+      spec:
+        description: CI infrastructure — GitHub ARC, Runners, Harbor
+        sourceRepos:
+          - https://github.com/WMS-DEV/infra-helm.git
+        destinations:
+          - namespace: '*'
+            server: '*'
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: storage
+        namespace: argocd
+      spec:
+        description: Storage — Postgres
+        sourceRepos:
+          - https://github.com/WMS-DEV/infra-helm.git
+        destinations:
+          - namespace: '*'
+            server: '*'
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: monitoring
+        namespace: argocd
+      spec:
+        description: Monitoring — Victoria, Grafana, AlertManager
+        sourceRepos:
+          - https://github.com/WMS-DEV/infra-helm.git
+        destinations:
+          - namespace: '*'
+            server: '*'
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      metadata:
+        name: wmsapps-dev
+        namespace: argocd
+      spec:
+        description: WMS application workloads
+        sourceRepos:
+          - '*'
+        destinations:
+          - namespace: '*'
+            server: '*'
+        clusterResourceWhitelist:
+          - group: '*'
+            kind: '*'
