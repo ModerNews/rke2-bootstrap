@@ -9,7 +9,7 @@ spec:
   project: platform
   source:
     repoURL: https://github.com/WMS-DEV/infra-helm.git
-    targetRevision: HEAD
+    targetRevision: argocd-rewrite
     path: .argocd/bootstrap/tools
   destination:
     server: https://kubernetes.default.svc
