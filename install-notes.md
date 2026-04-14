@@ -168,3 +168,53 @@ journalctl -u rke2-agent -f
 ```
 
 Node should reconcile with the cluster in short time.
+
+---
+
+## ArgoCD Bootstrap
+
+### Step 1 — Install ArgoCD (stub)
+
+```sh
+kubectl create namespace argocd
+cd infra-helm/ArgoCD
+helm dependency update
+helm install argocd . -n argocd -f <path-to-rke2-bootstrap>/argocd/values.bootstrap.yaml
+```
+
+### Step 2 — Apply repository secret
+
+```sh
+kubectl create secret generic infra-helm-repo -n argocd \
+  --from-literal=type=git \
+  --from-literal=url=https://github.com/WMS-DEV/infra-helm.git \
+  --from-literal=githubAppID=<app-id> \
+  --from-literal=githubAppInstallationID=<installation-id> \
+  --from-file=githubAppPrivateKey=<path/to/github-app.pem>
+
+kubectl label secret infra-helm-repo -n argocd \
+  argocd.argoproj.io/secret-type=repository
+```
+
+> [!IMPORTANT]
+> This must be applied before the bootstrap root app, otherwise ArgoCD cannot pull from the repo.
+
+### Step 3 — Apply bootstrap root app
+
+```sh
+kubectl apply -f argocd/bootstrap-roots/tools.yaml
+```
+
+ArgoCD will now sync waves 1–5 automatically. Monitor progress:
+
+```sh
+kubectl get applications -n argocd -w
+```
+
+### Step 4 — Flip bootstrap label
+
+Once all waves are healthy, update the cluster secret to trigger ApplicationSets:
+
+```sh
+kubectl label secret tools-k8s-internal-wmsdev-pl -n argocd bootstrap-stage=ready --overwrite
+```
