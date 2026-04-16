@@ -205,10 +205,44 @@ kubectl label secret infra-helm-repo -n argocd \
 kubectl apply -f argocd/bootstrap-roots/tools.yaml
 ```
 
-ArgoCD will now sync waves 1–5 automatically. Monitor progress:
+ArgoCD will now sync waves automatically. Monitor progress:
 
 ```sh
 kubectl get applications -n argocd -w
+```
+
+### Step 3.5 — Reconfigure Vault Kubernetes auth
+
+> [!IMPORTANT]
+> Do this after wave 1 (VSO) is healthy but before wave 2 (ceph-csi) syncs.
+> Vault's Kubernetes auth backend must point at this cluster — it will still hold
+> the previous cluster's CA and API server from the last bootstrap.
+
+```sh
+# Get new cluster CA cert and API server
+kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}'
+kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}' | base64 -d > /tmp/k8s-ca.crt
+
+# Create a non-expiring token reviewer secret for VSO's service account
+# (kubectl create token caps at 1h regardless of --duration; SA token secrets do not expire)
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-reviewer-token
+  namespace: hashicorp-vault
+  annotations:
+    kubernetes.io/service-account.name: vault-secrets-provider
+type: kubernetes.io/service-account-token
+EOF
+
+TOKEN=$(kubectl get secret vault-reviewer-token -n hashicorp-vault -o jsonpath='{.data.token}' | base64 -d)
+
+# Reconfigure
+vault write auth/kubernetes/config \
+  kubernetes_host=https://<api-server>:6443 \
+  kubernetes_ca_cert=@/tmp/k8s-ca.crt \
+  token_reviewer_jwt=$TOKEN
 ```
 
 ### Step 4 — Flip bootstrap label
