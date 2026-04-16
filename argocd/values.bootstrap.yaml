@@ -13,14 +13,13 @@ vaultSecrets: null  # VSO is not yet installed
 argo-cd:
   configs:
     cm:
-      admin.enabled: true
+      admin.enabled: false
       # OIDC omitted — SSO not available during bootstrap
     params:
       server.insecure: true
     secret:
-      # Ansible must supply admin password at install time via:
-      #   --set argo-cd.configs.secret.argocdServerAdminPassword=<bcrypt>
-      createSecret: true
+      # Do not create the secret. It doesn't contain any data useful during bootstrap, and it causes issues when ArgoCD tries to update it with the VSO secret down the line.
+      createSecret: false
 
   controller:
     replicas: 1
@@ -61,7 +60,7 @@ argo-cd:
       enabled: false
     pdb:
       enabled: false
-    existingVolumes: {}
+    existingVolumes: null
     useEphemeralHelmWorkingDir: true
     metrics:
       enabled: false
