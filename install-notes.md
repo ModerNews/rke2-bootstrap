@@ -23,10 +23,10 @@ artifacts from the first master before proceeding.
 ```mermaid
 flowchart LR
     A[Preflight] --> B[Host prep]
-    A --> C[master-init]
+    B --> C[master-init]
     C --> D[bootstrap-artifacts]
-    D --> E[master-join]
-    D --> F[Workers]
+    D --> E[master-join ×2<br/>serial: 1]
+    E --> F[Workers ×N<br/>parallel]
 ```
 
 ### Setup
