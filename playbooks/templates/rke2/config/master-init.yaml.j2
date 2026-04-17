@@ -1,8 +1,6 @@
 # /etc/rancher/rke2/config.yaml
 # First control plane node only — bootstraps the cluster
 
-token: "{{ rke2_token }}"
-
 tls-san:
   - "{{ rke2_api_fqdn }}"
   - "{{ rke2_vip }}"
