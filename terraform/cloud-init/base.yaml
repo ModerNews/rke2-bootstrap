@@ -31,6 +31,20 @@ write_files:
     owner: root:root
     permissions: "0440"
 
+  - path: /etc/NetworkManager/conf.d/99-dns.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [main]
+      dns=none
+
+  - path: /etc/resolv.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      nameserver 10.0.0.1
+      search wmsdev.pl
+
 runcmd:
   - systemctl daemon-reload
   - update-ca-trust
