@@ -17,12 +17,15 @@
     local_kubeconfig_content: "{{ lookup('ansible.builtin.file', kubeconfig) }}"
   delegate_to: localhost
   become: false
+  when: local_kubeconfig_stat.stat.exists
+  no_log: true
 
 - name: Read local token artifact
   ansible.builtin.set_fact:
     local_token_content: "{{ lookup('ansible.builtin.file', rke2_token_local_path) | trim }}"
   delegate_to: localhost
   become: false
+  when: local_token_stat.stat.exists
   no_log: true
 
 - name: Assert local bootstrap artifacts are usable

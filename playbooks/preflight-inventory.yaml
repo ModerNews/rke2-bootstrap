@@ -1,19 +1,18 @@
 - name: Assert required inventory groups exist
   ansible.builtin.assert:
     that:
-      - groups['kube-masters'] is defined
-      - groups['kube-workers'] is defined
-      - (groups['kube-masters'] | length) > 0
+      - (groups.get('kube-masters', []) | length) > 0
+      - (groups.get('kube-workers', []) | length) > 0
     fail_msg: >-
       Inventory must define `kube-masters` and `kube-workers`, with at least one
       control-plane node in `kube-masters`.
 
 - name: Build cluster inventory facts
   ansible.builtin.set_fact:
-    rke2_cluster_hosts: "{{ groups['kube-masters'] + groups['kube-workers'] }}"
-    rke2_master_node_ips: "{{ groups['kube-masters'] | map('extract', hostvars, 'rke2_node_ip') | list }}"
-    rke2_cluster_node_ips: "{{ (groups['kube-masters'] + groups['kube-workers']) | map('extract', hostvars, 'rke2_node_ip') | list }}"
-    rke2_cluster_ansible_hosts: "{{ (groups['kube-masters'] + groups['kube-workers']) | map('extract', hostvars, 'ansible_host') | list }}"
+    rke2_cluster_hosts: "{{ groups.get('kube-masters', []) + groups.get('kube-workers', []) }}"
+    rke2_master_node_ips: "{{ groups.get('kube-masters', []) | map('extract', hostvars, 'rke2_node_ip') | list }}"
+    rke2_cluster_node_ips: "{{ (groups.get('kube-masters', []) + groups.get('kube-workers', [])) | map('extract', hostvars, 'rke2_node_ip') | list }}"
+    rke2_cluster_ansible_hosts: "{{ (groups.get('kube-masters', []) + groups.get('kube-workers', [])) | map('extract', hostvars, 'ansible_host') | list }}"
 
 - name: Assert inventory hostnames are unique
   ansible.builtin.assert:

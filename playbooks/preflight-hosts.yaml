@@ -3,7 +3,7 @@
     timeout: 300
 
 - name: Check cloud-init presence
-  ansible.builtin.command: command -v cloud-init
+  ansible.builtin.shell: command -v cloud-init
   register: cloud_init_binary
   changed_when: false
   failed_when: false
