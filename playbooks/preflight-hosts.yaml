@@ -1,0 +1,27 @@
+- name: Ensure target host is reachable
+  ansible.builtin.wait_for_connection:
+    timeout: 300
+
+- name: Check cloud-init presence
+  ansible.builtin.shell: command -v cloud-init
+  register: cloud_init_binary
+  changed_when: false
+  failed_when: false
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Check /etc/fstab presence
+  ansible.builtin.stat:
+    path: /etc/fstab
+  register: fstab_file
+
+- name: Assert bootstrap prerequisites exist on the host
+  ansible.builtin.assert:
+    that:
+      - cloud_init_binary.rc == 0
+      - "'NetworkManager.service' in ansible_facts.services"
+      - fstab_file.stat.exists
+    fail_msg: >-
+      Host `{{ inventory_hostname }}` is missing a prerequisite expected by the
+      bootstrap playbook (`cloud-init`, `NetworkManager`, or `/etc/fstab`).

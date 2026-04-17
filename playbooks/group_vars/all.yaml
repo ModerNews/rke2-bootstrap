@@ -1,0 +1,31 @@
+# Connection
+ansible_user: wms
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+
+# Local bootstrap artifacts — written from master-init, used by follow-up stages on localhost
+bootstrap_artifact_dir: "{{ playbook_dir }}/.artifacts"
+kubeconfig: "{{ bootstrap_artifact_dir }}/kubeconfig"
+rke2_token_local_path: "{{ bootstrap_artifact_dir }}/node-token"
+
+# --- VIP & API ---
+rke2_vip: VIP_IP
+rke2_api_fqdn: api.tools.k8s.internal.wmsdev.pl
+
+# --- Master IPs (for tls-san) ---
+rke2_master_ips:
+  - MASTER1_IP
+  - MASTER2_IP
+  - MASTER3_IP
+
+# --- Cluster networking ---
+rke2_cluster_domain: tools.k8s.internal.wmsdev.pl
+rke2_cluster_cidr: CLUSTER_CIDR    # e.g. 10.42.0.0/16
+rke2_service_cidr: SERVICE_CIDR    # e.g. 10.43.0.0/16
+
+# --- VIP interface ---
+vip_interface: eth0
+vip_prefix: VIP_PREFIX             # e.g. 24
+
+# --- Component versions ---
+cilium_version: "1.18.2"
+kube_vip_version: "v0.8.0"

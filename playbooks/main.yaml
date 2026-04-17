@@ -1,0 +1,153 @@
+- name: Preflight inventory and bootstrap inputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - preflight
+    - always
+  tasks:
+    - name: Include inventory preflight tasks
+      ansible.builtin.include_tasks: preflight-inventory.yaml
+      tags:
+        - preflight
+        - always
+
+- name: Preflight target hosts
+  hosts: all
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - preflight
+    - always
+  tasks:
+    - name: Include host preflight tasks
+      ansible.builtin.include_tasks: preflight-hosts.yaml
+      tags:
+        - preflight
+        - always
+
+- name: Prepare hardware
+  hosts: all
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - host_prep
+  handlers:
+    - name: Apply rke2 sysctl settings
+      ansible.builtin.command: sysctl --system
+      changed_when: false
+
+    - name: Reload NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: reloaded
+  tasks:
+    - name: Include hardware prep tasks
+      ansible.builtin.include_tasks: hw_prep.yaml
+      tags:
+        - host_prep
+
+- name: Initialize master node
+  hosts: kube-masters[0]
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - master_init
+    - control_plane
+    - bootstrap
+  tasks:
+    - name: Include master init tasks
+      ansible.builtin.include_tasks: master-init.yaml
+      tags:
+        - master_init
+        - control_plane
+        - bootstrap
+
+- name: Gather bootstrap artifacts from the first master
+  hosts: kube-masters[0]
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - bootstrap_artifacts
+    - master_join
+    - workers
+    - control_plane
+    - bootstrap
+  tasks:
+    - name: Include bootstrap artifact prechecks
+      ansible.builtin.include_tasks: bootstrap-artifacts-precheck.yaml
+      tags:
+        - bootstrap_artifacts
+        - master_join
+        - workers
+        - control_plane
+        - bootstrap
+
+    - name: Include bootstrap artifact tasks
+      ansible.builtin.include_tasks: bootstrap-artifacts.yaml
+      tags:
+        - bootstrap_artifacts
+        - master_join
+        - workers
+        - control_plane
+        - bootstrap
+
+    - name: Include bootstrap artifact postchecks
+      ansible.builtin.include_tasks: bootstrap-artifacts-postcheck.yaml
+      tags:
+        - bootstrap_artifacts
+        - master_join
+        - workers
+        - control_plane
+        - bootstrap
+
+- name: Join additional master nodes
+  hosts: kube-masters[1:]
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  serial: 1
+  tags:
+    - master_join
+    - control_plane
+    - bootstrap
+  tasks:
+    - name: Include master join prechecks
+      ansible.builtin.include_tasks: master-join-precheck.yaml
+      tags:
+        - master_join
+        - control_plane
+        - bootstrap
+
+    - name: Include master join tasks
+      ansible.builtin.include_tasks: master-join.yaml
+      tags:
+        - master_join
+        - control_plane
+        - bootstrap
+
+- name: Join worker nodes
+  hosts: kube-workers
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - workers
+    - bootstrap
+  tasks:
+    - name: Include worker prechecks
+      ansible.builtin.include_tasks: workers-precheck.yaml
+      tags:
+        - workers
+        - bootstrap
+
+    - name: Include worker join tasks
+      ansible.builtin.include_tasks: workers.yaml
+      tags:
+        - workers
+        - bootstrap

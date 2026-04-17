@@ -14,6 +14,49 @@ flowchart LR
 
 ---
 
+## Automated Install
+
+The Ansible playbook mirrors the manual bootstrap order and exposes each stage through tags.
+Preflight checks always run first, while `master-join` and `workers` also refresh bootstrap
+artifacts from the first master before proceeding.
+
+```mermaid
+flowchart LR
+    A[Preflight] --> B[Host prep]
+    B --> C[master-init]
+    C --> D[bootstrap-artifacts]
+    D --> E[master-join ×2<br/>serial: 1]
+    E --> F[Workers ×N<br/>parallel]
+```
+
+### Setup
+
+```sh
+ansible-galaxy collection install -r collections/requirements.yml
+```
+
+### Full run
+
+```sh
+ansible-playbook playbooks/main.yaml
+```
+
+### Stage runs
+
+```sh
+ansible-playbook playbooks/main.yaml --tags preflight
+ansible-playbook playbooks/main.yaml --tags host_prep
+ansible-playbook playbooks/main.yaml --tags master_init
+ansible-playbook playbooks/main.yaml --tags master_join
+ansible-playbook playbooks/main.yaml --tags workers
+```
+
+> [!NOTE]
+> `master_join` and `workers` depend on artifacts collected from the first master.
+> The playbook refreshes those artifacts automatically before running either stage.
+
+---
+
 ## Pre-config
 
 > [!NOTE]
