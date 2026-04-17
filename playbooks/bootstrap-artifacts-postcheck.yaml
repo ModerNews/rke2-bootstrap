@@ -1,0 +1,37 @@
+- name: Check local kubeconfig artifact
+  ansible.builtin.stat:
+    path: "{{ kubeconfig }}"
+  register: local_kubeconfig_stat
+  delegate_to: localhost
+  become: false
+
+- name: Check local token artifact
+  ansible.builtin.stat:
+    path: "{{ rke2_token_local_path }}"
+  register: local_token_stat
+  delegate_to: localhost
+  become: false
+
+- name: Read local kubeconfig artifact
+  ansible.builtin.set_fact:
+    local_kubeconfig_content: "{{ lookup('ansible.builtin.file', kubeconfig) }}"
+  delegate_to: localhost
+  become: false
+
+- name: Read local token artifact
+  ansible.builtin.set_fact:
+    local_token_content: "{{ lookup('ansible.builtin.file', rke2_token_local_path) | trim }}"
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Assert local bootstrap artifacts are usable
+  ansible.builtin.assert:
+    that:
+      - local_kubeconfig_stat.stat.exists
+      - local_token_stat.stat.exists
+      - (local_token_content | length) > 0
+      - "'https://{{ rke2_vip }}:6443' in local_kubeconfig_content"
+    fail_msg: >-
+      Local bootstrap artifacts are missing or invalid. Refresh bootstrap artifacts from the first master
+      before running join stages.

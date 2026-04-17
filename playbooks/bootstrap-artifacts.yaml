@@ -1,0 +1,46 @@
+- name: Ensure local bootstrap artifact directory exists
+  ansible.builtin.file:
+    path: "{{ bootstrap_artifact_dir }}"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  become: false
+
+- name: Wait for RKE2 token file
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/rke2/server/node-token
+    timeout: 120
+
+- name: Read RKE2 cluster token
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/rke2/server/node-token
+  register: rke2_token_file
+
+- name: Set RKE2 token fact
+  ansible.builtin.set_fact:
+    rke2_token: "{{ rke2_token_file.content | b64decode | trim }}"
+    cacheable: true
+  no_log: true
+
+- name: Persist bootstrap token locally
+  ansible.builtin.copy:
+    content: "{{ rke2_token }}"
+    dest: "{{ rke2_token_local_path }}"
+    mode: '0600'
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Fetch kubeconfig from bootstrap master
+  ansible.builtin.fetch:
+    src: /etc/rancher/rke2/rke2.yaml
+    dest: "{{ kubeconfig }}"
+    flat: true
+
+- name: Fix kubeconfig server URL
+  ansible.builtin.replace:
+    path: "{{ kubeconfig }}"
+    regexp: 'https://127\.0\.0\.1:6443'
+    replace: "https://{{ rke2_vip }}:6443"
+  delegate_to: localhost
+  become: false
