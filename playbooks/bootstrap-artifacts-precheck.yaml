@@ -1,0 +1,18 @@
+- name: Check bootstrap kubeconfig on first master
+  ansible.builtin.stat:
+    path: /etc/rancher/rke2/rke2.yaml
+  register: bootstrap_kubeconfig_stat
+
+- name: Check bootstrap token on first master
+  ansible.builtin.stat:
+    path: /var/lib/rancher/rke2/server/node-token
+  register: bootstrap_token_stat
+
+- name: Assert first master produced bootstrap artifacts
+  ansible.builtin.assert:
+    that:
+      - bootstrap_kubeconfig_stat.stat.exists
+      - bootstrap_token_stat.stat.exists
+    fail_msg: >-
+      Bootstrap artifacts are not present on `{{ inventory_hostname }}` yet.
+      Run `master_init` first and wait for the first control-plane node to finish bootstrapping.
