@@ -83,15 +83,15 @@ argo-cd:
     - apiVersion: v1
       kind: Secret
       metadata:
-        name: tools-k8s-internal-wmsdev-pl
+        name: {{ rke2_cluster_domain | replace('.', '-') }}
         namespace: argocd
         labels:
           argocd.argoproj.io/secret-type: cluster
-          infrastructure.wmsdev.pl/cluster: tools.k8s.internal.wmsdev.pl
+          infrastructure.wmsdev.pl/cluster: {{ rke2_cluster_domain }}
           infrastructure.wmsdev.pl/cluster-group: prod
           bootstrap-stage: enrolling
       type: Opaque
       stringData:
-        name: tools.k8s.internal.wmsdev.pl
-        server: https://kubernetes.default.svc
+        name: {{ rke2_cluster_domain }}
+        server: https://{{ rke2_api_fqdn }}
         config: '{"tlsClientConfig":{"insecure":false}}'

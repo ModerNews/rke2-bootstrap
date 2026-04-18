@@ -6,3 +6,5 @@ collections:
     version: 12.5.0
   - name: kubernetes.core
     version: 6.3.0
+  - name: community.hashi_vault
+    version: 6.2.0

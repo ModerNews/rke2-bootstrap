@@ -1,0 +1,51 @@
+- name: Wait for ArgoCD server to be ready
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Deployment
+    name: argocd-server
+    namespace: argocd
+  register: _argocd_server_deploy
+  until: >
+    _argocd_server_deploy.resources is defined and
+    _argocd_server_deploy.resources | length > 0 and
+    (_argocd_server_deploy.resources[0].status.readyReplicas | default(0)) ==
+    _argocd_server_deploy.resources[0].spec.replicas
+  retries: 30
+  delay: 10
+
+- name: Assert repository secret exists in cluster
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Secret
+    name: infra-helm-repo
+    namespace: argocd
+  register: _repo_secret_info
+
+- name: Fail if repository secret is missing
+  ansible.builtin.assert:
+    that:
+      - _repo_secret_info.resources is defined
+      - _repo_secret_info.resources | length > 0
+    fail_msg: >-
+      ArgoCD repository secret infra-helm-repo not found in argocd namespace.
+
+- name: Wait for bootstrap-tools Application to be created
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: bootstrap-tools
+    namespace: argocd
+  register: _bootstrap_tools_app
+  until: >
+    _bootstrap_tools_app.resources is defined and
+    _bootstrap_tools_app.resources | length > 0
+  retries: 12
+  delay: 10
+
+- name: Assert bootstrap-tools Application is not Degraded
+  ansible.builtin.assert:
+    that: >-
+      _bootstrap_tools_app.resources[0].status.health.status | default('Unknown') != 'Degraded'
+    fail_msg: >-
+      bootstrap-tools Application is Degraded. Check ArgoCD for sync errors before proceeding.

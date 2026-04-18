@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/WMS-DEV/infra-helm.git
-    targetRevision: argocd-rewrite
+    repoURL: {{ infra_helm_repo }}
+    targetRevision: {{ infra_helm_revision }}
     path: .argocd/bootstrap/tools
   destination:
     server: https://kubernetes.default.svc
