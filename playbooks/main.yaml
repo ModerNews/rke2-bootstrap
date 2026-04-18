@@ -13,6 +13,19 @@
         - preflight
         - always
 
+    - name: Include localhost preflight tasks
+      ansible.builtin.include_tasks: preflight-localhost.yaml
+      tags:
+        - preflight
+        - always
+
+    - name: Include ArgoCD preflight tasks
+      ansible.builtin.include_tasks: preflight-argocd.yaml
+      tags:
+        - preflight
+        - argocd
+        - bootstrap
+
 - name: Preflight target hosts
   hosts: all
   become: true
