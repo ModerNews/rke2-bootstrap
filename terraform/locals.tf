@@ -13,7 +13,7 @@ locals {
 
   node_profile = {
     master = {
-      clone          = "alma"
+      clone          = "Alma"
       memory         = 8192
       cores          = 4
       disk_size      = "20G"
@@ -21,7 +21,7 @@ locals {
       log_disk_size  = "10G"
     }
     worker = {
-      clone         = "alma"
+      clone         = "Alma"
       memory        = 16384
       cores         = 8
       disk_size     = "20G"
