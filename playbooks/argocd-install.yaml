@@ -18,6 +18,44 @@
     dest: "{{ bootstrap_artifact_dir }}/values.bootstrap.yaml"
     mode: '0600'
 
+- name: Create argocd namespace
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: Namespace
+    name: argocd
+    state: present
+
+- name: Generate server.secretkey
+  ansible.builtin.set_fact:
+    argocd_server_secretkey: "{{ lookup('community.general.random_string', length=32, base64=true) }}"
+  no_log: true
+
+- name: Write server.secretkey to Vault
+  community.hashi_vault.vault_kv2_write:
+    url: "{{ vault_addr }}"
+    token: "{{ vault_token }}"
+    engine_mount_point: "{{ vault_kv_mount }}"
+    path: "{{ vault_argocd_secret_path }}"
+    data:
+      server.secretkey: "{{ argocd_server_secretkey }}"
+  no_log: true
+
+- name: Pre-create argocd-secret without Helm ownership
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-secret
+        namespace: argocd
+      type: Opaque
+      stringData:
+        server.secretkey: "{{ argocd_server_secretkey }}"
+  no_log: true
+
 - name: Install stub ArgoCD
   ansible.builtin.command:
     argv:
@@ -41,7 +79,7 @@
 - name: Fetch GitHub App credentials from Vault
   ansible.builtin.set_fact:
     _argocd_vault_creds: "{{ lookup('community.hashi_vault.hashi_vault',
-      vault_argocd_secret_path,
+      vault_github_app_path,
       token=vault_token,
       url=vault_addr) }}"
   no_log: true
