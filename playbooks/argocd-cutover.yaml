@@ -1,0 +1,28 @@
+- name: Wait for wave-4 ArgoCD Application to be Healthy and Synced
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: argocd
+    namespace: argocd
+  register: _argocd_app
+  until: >
+    _argocd_app.resources is defined and
+    _argocd_app.resources | length > 0 and
+    _argocd_app.resources[0].status.health.status == 'Healthy' and
+    _argocd_app.resources[0].status.sync.status == 'Synced'
+  retries: 60
+  delay: 15
+
+- name: Flip bootstrap-stage label to ready
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: Secret
+    name: "{{ rke2_cluster_domain | replace('.', '-') }}"
+    namespace: argocd
+    definition:
+      metadata:
+        labels:
+          bootstrap-stage: ready
+    merge_type: merge

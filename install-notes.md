@@ -31,15 +31,15 @@ flowchart LR
 
 ### Setup
 
-Install the `kubernetes` Python library via your system package manager — pip is not sufficient as it needs to be available system-wide for Ansible's delegate_to tasks:
+Install Python libraries via your system package manager — pip is not sufficient as they need to be available system-wide for Ansible's delegate_to tasks:
 
 ```sh
 # Arch
-sudo pacman -S python-kubernetes
+sudo pacman -S python-kubernetes python-hvac
 # Debian/Ubuntu
-sudo apt install python3-kubernetes
+sudo apt install python3-kubernetes python3-hvac
 # RHEL/Fedora
-sudo dnf install python3-kubernetes
+sudo dnf install python3-kubernetes python3-hvac
 ```
 
 Then install Ansible collections:

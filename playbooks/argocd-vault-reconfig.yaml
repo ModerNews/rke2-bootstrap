@@ -1,0 +1,90 @@
+- name: Create hashicorp-vault namespace
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: hashicorp-vault
+
+- name: Create vault-token-reviewer ServiceAccount
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: vault-token-reviewer
+        namespace: hashicorp-vault
+
+- name: Bind system:auth-delegator to vault-token-reviewer
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: vault-token-reviewer
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: system:auth-delegator
+      subjects:
+        - kind: ServiceAccount
+          name: vault-token-reviewer
+          namespace: hashicorp-vault
+
+- name: Create vault-token-reviewer token secret
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: vault-token-reviewer
+        namespace: hashicorp-vault
+        annotations:
+          kubernetes.io/service-account.name: vault-token-reviewer
+      type: kubernetes.io/service-account-token
+
+- name: Wait for token to be populated
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Secret
+    name: vault-token-reviewer
+    namespace: hashicorp-vault
+  register: _reviewer_secret
+  until: >
+    _reviewer_secret.resources is defined and
+    _reviewer_secret.resources | length > 0 and
+    _reviewer_secret.resources[0].data.token is defined
+  retries: 10
+  delay: 5
+
+- name: Extract token reviewer JWT
+  ansible.builtin.set_fact:
+    _vault_reviewer_jwt: "{{ _reviewer_secret.resources[0].data.token | b64decode }}"
+  no_log: true
+
+- name: Extract cluster CA cert
+  ansible.builtin.set_fact:
+    _k8s_ca_cert: >-
+      {{ (lookup('ansible.builtin.file', kubeconfig) | from_yaml)
+         .clusters[0].cluster['certificate-authority-data'] | b64decode }}
+
+- name: Extract API server URL
+  ansible.builtin.set_fact:
+    _k8s_api_server: >-
+      {{ (lookup('ansible.builtin.file', kubeconfig) | from_yaml)
+         .clusters[0].cluster.server }}
+
+- name: Reconfigure Vault Kubernetes auth backend
+  community.hashi_vault.vault_write:
+    url: "{{ vault_addr }}"
+    token: "{{ vault_token }}"
+    path: auth/kubernetes/config
+    data:
+      kubernetes_host: "{{ _k8s_api_server }}"
+      kubernetes_ca_cert: "{{ _k8s_ca_cert }}"
+      token_reviewer_jwt: "{{ _vault_reviewer_jwt }}"
+  no_log: true
