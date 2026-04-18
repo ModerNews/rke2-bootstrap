@@ -151,3 +151,54 @@
       tags:
         - workers
         - bootstrap
+
+- name: Bootstrap ArgoCD
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - argocd
+    - bootstrap
+  tasks:
+    - name: Include ArgoCD preflight checks
+      ansible.builtin.include_tasks: argocd-precheck.yaml
+      tags:
+        - argocd
+        - bootstrap
+
+    - name: Include Vault Kubernetes auth reconfiguration tasks
+      ansible.builtin.include_tasks: argocd-vault-reconfig.yaml
+      tags:
+        - argocd
+        - bootstrap
+
+    - name: Include ArgoCD install tasks
+      ansible.builtin.include_tasks: argocd-install.yaml
+      tags:
+        - argocd
+        - bootstrap
+
+    - name: Include ArgoCD install postchecks
+      ansible.builtin.include_tasks: argocd-install-postcheck.yaml
+      tags:
+        - argocd
+        - bootstrap
+
+- name: ArgoCD cutover
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+  tags:
+    - argocd_cutover
+  tasks:
+    - name: Include ArgoCD cutover tasks
+      ansible.builtin.include_tasks: argocd-cutover.yaml
+      tags:
+        - argocd_cutover
+
+    - name: Include ArgoCD cutover postchecks
+      ansible.builtin.include_tasks: argocd-cutover-postcheck.yaml
+      tags:
+        - argocd_cutover
