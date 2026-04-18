@@ -31,6 +31,19 @@ flowchart LR
 
 ### Setup
 
+Install the `kubernetes` Python library via your system package manager — pip is not sufficient as it needs to be available system-wide for Ansible's delegate_to tasks:
+
+```sh
+# Arch
+sudo pacman -S python-kubernetes
+# Debian/Ubuntu
+sudo apt install python3-kubernetes
+# RHEL/Fedora
+sudo dnf install python3-kubernetes
+```
+
+Then install Ansible collections:
+
 ```sh
 ansible-galaxy collection install -r collections/requirements.yml
 ```
@@ -54,6 +67,13 @@ ansible-playbook playbooks/main.yaml --tags workers
 > [!NOTE]
 > `master_join` and `workers` depend on artifacts collected from the first master.
 > The playbook refreshes those artifacts automatically before running either stage.
+
+> [!NOTE]
+> After rebuilding VMs, SSH host keys change and preflight will fail with `Host key verification failed`.
+> Pass `-e refresh_host_keys=true` to clear stale entries and re-scan before connecting:
+> ```sh
+> ansible-playbook playbooks/main.yaml --tags preflight -e refresh_host_keys=true
+> ```
 
 ---
 

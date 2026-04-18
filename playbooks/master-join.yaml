@@ -44,6 +44,7 @@
     kubeconfig: "{{ kubeconfig }}"
   register: node_info
   until: >
+    node_info.resources is defined and
     node_info.resources | length > 0 and
     (node_info.resources[0].status.conditions |
      selectattr('type', 'equalto', 'Ready') |

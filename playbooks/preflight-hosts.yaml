@@ -1,6 +1,29 @@
-- name: Ensure target host is reachable
-  ansible.builtin.wait_for_connection:
+- name: Wait for SSH port to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
     timeout: 300
+  delegate_to: localhost
+  become: false
+
+- name: Refresh host key  # pass -e refresh_host_keys=true after rebuilding VMs
+  when: refresh_host_keys | default(false) | bool
+  block:
+    - name: Remove stale known_hosts entry
+      ansible.builtin.known_hosts:
+        name: "{{ ansible_host }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+
+    - name: Scan and accept fresh host key
+      ansible.builtin.shell: ssh-keyscan -H "{{ ansible_host }}" >> ~/.ssh/known_hosts
+      delegate_to: localhost
+      become: false
+      changed_when: true
+
+- name: Verify SSH authentication
+  ansible.builtin.ping:
 
 - name: Check cloud-init presence
   ansible.builtin.shell: command -v cloud-init

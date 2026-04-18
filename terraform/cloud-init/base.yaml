@@ -27,7 +27,7 @@ packages:
 write_files:
   - path: /etc/sudoers.d/10-default-nopasswd
     content: |
-      %Default ALL=(ALL) NOPASSWD:ALL
+      %wheel ALL=(ALL) NOPASSWD:ALL
     owner: root:root
     permissions: "0440"
 

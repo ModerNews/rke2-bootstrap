@@ -34,7 +34,7 @@
       - local_kubeconfig_stat.stat.exists
       - local_token_stat.stat.exists
       - (local_token_content | length) > 0
-      - "'https://{{ rke2_vip }}:6443' in local_kubeconfig_content"
+      - "('https://' ~ rke2_vip ~ ':6443') in local_kubeconfig_content"
     fail_msg: >-
       Local bootstrap artifacts are missing or invalid. Refresh bootstrap artifacts from the first master
       before running join stages.
