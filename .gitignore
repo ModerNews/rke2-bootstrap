@@ -5,3 +5,6 @@
 terraform.tfvars
 # Keys
 *.pem
+# Ansible
+.ansible
+.artifacts
