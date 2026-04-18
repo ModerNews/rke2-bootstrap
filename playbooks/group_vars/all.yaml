@@ -28,7 +28,9 @@ vip_prefix: 24
 
 # --- Vault ---
 vault_addr: https://vault.internal.wmsdev.pl
-vault_argocd_secret_path: secret/argocd/github-app
+vault_kv_mount: secret
+vault_github_app_path: argocd/github-app       # GitHub App credentials for infra-helm repo access
+vault_argocd_secret_path: argocd/argocd-secret # ArgoCD server secret (OIDC, Slack, secretkey)
 # vault_token: passed at runtime via -e vault_token=...
 
 # --- GitHub ---
