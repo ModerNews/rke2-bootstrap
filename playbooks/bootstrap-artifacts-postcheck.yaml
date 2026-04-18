@@ -33,6 +33,8 @@
     that:
       - local_kubeconfig_stat.stat.exists
       - local_token_stat.stat.exists
+      - local_kubeconfig_content is defined
+      - local_token_content is defined
       - (local_token_content | length) > 0
       - "('https://' ~ rke2_vip ~ ':6443') in local_kubeconfig_content"
     fail_msg: >-
