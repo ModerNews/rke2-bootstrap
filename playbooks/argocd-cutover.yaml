@@ -15,6 +15,45 @@
   retries: 80
   delay: 15
 
+- name: Check ArgoCD self-management Application before cutover
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: argocd
+    namespace: argocd
+  register: _argocd_self_manage_app
+
+- name: Check ApplicationSets root Application before cutover
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: appsets-root
+    namespace: argocd
+  register: _appsets_root_app
+
+- name: Check bootstrap-stage label before cutover
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: Secret
+    name: "{{ rke2_cluster_domain | replace('.', '-') }}"
+    namespace: argocd
+  register: _cutover_cluster_secret
+
+- name: Assert cutover has not already been applied
+  ansible.builtin.assert:
+    that:
+      - (_argocd_self_manage_app.resources | default([]) | length) == 0
+      - (_appsets_root_app.resources | default([]) | length) == 0
+      - >
+        (_cutover_cluster_secret.resources | default([]) | length) == 0 or
+        _cutover_cluster_secret.resources[0].metadata.labels['bootstrap-stage'] | default('bootstrap') != 'ready'
+    fail_msg: >-
+      Cutover markers already exist. Refusing to rerun cutover automatically
+      once the cluster is marked `bootstrap-stage=ready`.
+
 - name: Upgrade ArgoCD to production values
   # --force recreates resources whose spec cannot be patched in-place
   # (handles the one-time emptyDir → PVC volume type transition on repo-server)
@@ -43,11 +82,13 @@
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition: "{{ lookup('file', infra_helm_path + '/.argocd/argocd.yaml') | from_yaml }}"
+  when: (_argocd_self_manage_app.resources | default([]) | length) == 0
 
 - name: Apply ApplicationSets root Application
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
     definition: "{{ lookup('file', infra_helm_path + '/.argocd/appsets-root.yaml') | from_yaml }}"
+  when: (_appsets_root_app.resources | default([]) | length) == 0
 
 - name: Flip bootstrap-stage label to ready
   kubernetes.core.k8s:

@@ -1,3 +1,11 @@
+- name: Check hashicorp-vault namespace
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: Namespace
+    name: hashicorp-vault
+  register: _vault_namespace_info
+
 - name: Create hashicorp-vault namespace
   kubernetes.core.k8s:
     kubeconfig: "{{ kubeconfig }}"
@@ -6,6 +14,16 @@
       kind: Namespace
       metadata:
         name: hashicorp-vault
+  when: (_vault_namespace_info.resources | default([]) | length) == 0
+
+- name: Check vault-token-reviewer ServiceAccount
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: ServiceAccount
+    name: vault-token-reviewer
+    namespace: hashicorp-vault
+  register: _vault_sa_info
 
 - name: Create vault-token-reviewer ServiceAccount
   kubernetes.core.k8s:
@@ -16,6 +34,15 @@
       metadata:
         name: vault-token-reviewer
         namespace: hashicorp-vault
+  when: (_vault_sa_info.resources | default([]) | length) == 0
+
+- name: Check vault-token-reviewer ClusterRoleBinding
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    name: vault-token-reviewer
+  register: _vault_crb_info
 
 - name: Bind system:auth-delegator to vault-token-reviewer
   kubernetes.core.k8s:
@@ -33,6 +60,26 @@
         - kind: ServiceAccount
           name: vault-token-reviewer
           namespace: hashicorp-vault
+  when: (_vault_crb_info.resources | default([]) | length) == 0
+
+- name: Check vault-token-reviewer token secret
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Secret
+    name: vault-token-reviewer
+    namespace: hashicorp-vault
+  register: _reviewer_secret_info
+
+- name: Assert existing vault-token-reviewer secret is well formed
+  ansible.builtin.assert:
+    that:
+      - (_reviewer_secret_info.resources | default([]) | length) == 0 or _reviewer_secret_info.resources[0].type == 'kubernetes.io/service-account-token'
+      - >
+        (_reviewer_secret_info.resources | default([]) | length) == 0 or
+        _reviewer_secret_info.resources[0].metadata.annotations['kubernetes.io/service-account.name'] == 'vault-token-reviewer'
+    fail_msg: >-
+      Existing `vault-token-reviewer` secret is malformed. Refusing to replace
+      it automatically because that could rotate the reviewer token unexpectedly.
 
 - name: Create vault-token-reviewer token secret
   kubernetes.core.k8s:
@@ -46,6 +93,7 @@
         annotations:
           kubernetes.io/service-account.name: vault-token-reviewer
       type: kubernetes.io/service-account-token
+  when: (_reviewer_secret_info.resources | default([]) | length) == 0
 
 - name: Wait for token to be populated
   kubernetes.core.k8s_info:
