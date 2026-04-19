@@ -1,14 +1,12 @@
-# Stub ArgoCD values — used by Ansible for initial installation
-# Applied before bootstrap root; intentionally minimal
-# Wave 4 (argocd.yaml) replaces this with full values.yaml from infra-helm
+# Bootstrap overlay — applied on top of infra-helm/ArgoCD/values.yaml during stub install
+# Disables steady-state features not available before bootstrap completes
+# Ansible cutover (argocd-cutover.yaml) upgrades to values.yaml + values.stable.yaml
 
 grafanaDashboards:
   enabled: false
 
-repoServerPVCs:
-  enabled: false
-
-vaultSecrets: null  # VSO is not yet installed
+vaultSecrets:
+  enabled: false  # VSO is not yet installed
 
 argo-cd:
   configs:
@@ -18,7 +16,7 @@ argo-cd:
     params:
       server.insecure: true
     secret:
-      # Do not create the secret. It doesn't contain any data useful during bootstrap, and it causes issues when ArgoCD tries to update it with the VSO secret down the line.
+      # Prevent ArgoCD from creating argocd-secret — VSO will own it post-bootstrap
       createSecret: false
 
   controller:
@@ -60,7 +58,6 @@ argo-cd:
       enabled: false
     pdb:
       enabled: false
-    useEphemeralHelmWorkingDir: true
     metrics:
       enabled: false
       serviceMonitor:

@@ -3,7 +3,6 @@
     repo: "https://x-access-token:{{ github_pat }}@{{ infra_helm_repo | regex_replace('^https://', '') }}"
     dest: "{{ infra_helm_path }}"
     version: "{{ infra_helm_revision }}"
-    force: true
   no_log: true
 
 - name: Update Helm chart dependencies
@@ -68,6 +67,8 @@
       - argocd
       - --create-namespace
       - --values
+      - "{{ infra_helm_path }}/ArgoCD/values.yaml"
+      - --values
       - "{{ bootstrap_artifact_dir }}/values.bootstrap.yaml"
       - --kubeconfig
       - "{{ kubeconfig }}"
@@ -77,11 +78,17 @@
   changed_when: true
 
 - name: Fetch GitHub App credentials from Vault
+  community.hashi_vault.vault_kv2_get:
+    url: "{{ vault_addr }}"
+    token: "{{ vault_token }}"
+    path: "{{ vault_github_app_path }}"
+    engine_mount_point: "{{ vault_kv_mount }}"
+  register: _vault_github_app_raw
+  no_log: true
+
+- name: Set GitHub App credentials fact
   ansible.builtin.set_fact:
-    _argocd_vault_creds: "{{ lookup('community.hashi_vault.hashi_vault',
-      vault_github_app_path,
-      token=vault_token,
-      url=vault_addr) }}"
+    _argocd_vault_creds: "{{ _vault_github_app_raw.secret }}"
   no_log: true
 
 - name: Apply ArgoCD repository secret

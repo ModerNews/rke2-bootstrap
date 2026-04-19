@@ -1,18 +1,53 @@
-- name: Wait for wave-4 ArgoCD Application to be Healthy and Synced
+- name: Wait for bootstrap tools Application to be Healthy and Synced
   kubernetes.core.k8s_info:
     kubeconfig: "{{ kubeconfig }}"
     api_version: argoproj.io/v1alpha1
     kind: Application
-    name: argocd
+    name: tools
     namespace: argocd
-  register: _argocd_app
+  register: _tools_app
   until: >
-    _argocd_app.resources is defined and
-    _argocd_app.resources | length > 0 and
-    _argocd_app.resources[0].status.health.status == 'Healthy' and
-    _argocd_app.resources[0].status.sync.status == 'Synced'
-  retries: 60
+    _tools_app.resources | length > 0 and
+    _tools_app.resources[0].status is defined and
+    _tools_app.resources[0].status.health is defined and
+    _tools_app.resources[0].status.health.status == 'Healthy' and
+    _tools_app.resources[0].status.sync.status == 'Synced'
+  retries: 80
   delay: 15
+
+- name: Upgrade ArgoCD to production values
+  # --force recreates resources whose spec cannot be patched in-place
+  # (handles the one-time emptyDir → PVC volume type transition on repo-server)
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - --force
+      - argocd
+      - "{{ infra_helm_path }}/ArgoCD"
+      - --namespace
+      - argocd
+      - --values
+      - "{{ infra_helm_path }}/ArgoCD/values.yaml"
+      - --values
+      - "{{ infra_helm_path }}/ArgoCD/values.stable.yaml"
+      - --kubeconfig
+      - "{{ kubeconfig }}"
+      - --wait
+      - --timeout
+      - 600s
+  changed_when: true
+
+- name: Apply ArgoCD self-management Application
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition: "{{ lookup('file', infra_helm_path + '/.argocd/argocd.yaml') | from_yaml }}"
+
+- name: Apply ApplicationSets root Application
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition: "{{ lookup('file', infra_helm_path + '/.argocd/appsets-root.yaml') | from_yaml }}"
 
 - name: Flip bootstrap-stage label to ready
   kubernetes.core.k8s:

@@ -9,6 +9,38 @@
 - name: Refresh host key  # pass -e refresh_host_keys=true after rebuilding VMs
   when: refresh_host_keys | default(false) | bool
   block:
+    - name: Check if known_hosts.old backup exists
+      ansible.builtin.stat:
+        path: ~/.ssh/known_hosts.old
+      register: _known_hosts_old
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Prompt to remove known_hosts.old backup
+      ansible.builtin.pause:
+        prompt: "known_hosts.old backup exists from a previous run. Remove it? [yes/no]"
+      register: _remove_backup_prompt
+      when:
+        - _known_hosts_old.stat.exists
+        - remove_known_hosts_backup is not defined
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Remove known_hosts.old backup
+      ansible.builtin.file:
+        path: ~/.ssh/known_hosts.old
+        state: absent
+      delegate_to: localhost
+      become: false
+      run_once: true
+      when:
+        - _known_hosts_old.stat.exists
+        - >-
+          (remove_known_hosts_backup is defined and remove_known_hosts_backup | bool) or
+          (_remove_backup_prompt is not skipped and _remove_backup_prompt.user_input | lower in ['yes', 'y'])
+
     - name: Remove stale known_hosts entry
       ansible.builtin.known_hosts:
         name: "{{ ansible_host }}"
