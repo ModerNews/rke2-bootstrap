@@ -39,6 +39,13 @@ infra_helm_repo: https://github.com/WMS-DEV/infra-helm.git
 infra_helm_revision: main
 infra_helm_path: "{{ bootstrap_artifact_dir }}/infra-helm"
 
+# --- ArgoCD enrollment ---
+# Parent ArgoCD cluster kubeconfig — path to kubeconfig for the cluster hosting ArgoCD
+# argocd_parent_kubeconfig: passed at runtime via -e or set here
+
+# Cluster group label for the ArgoCD cluster Secret
+argocd_cluster_group: prod
+
 # --- Component versions ---
 cilium_version: "1.18.2"
 kube_vip_version: "v0.8.0"

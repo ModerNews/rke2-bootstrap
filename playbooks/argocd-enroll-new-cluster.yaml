@@ -1,0 +1,61 @@
+- name: Create argocd ServiceAccount in kube-system (new cluster)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: argocd
+        namespace: kube-system
+
+- name: Create argocd ClusterRoleBinding → cluster-admin (new cluster)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: argocd
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+        - kind: ServiceAccount
+          name: argocd
+          namespace: kube-system
+
+- name: Create argocd service-account-token Secret (new cluster)
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd
+        namespace: kube-system
+        annotations:
+          kubernetes.io/service-account.name: argocd
+      type: kubernetes.io/service-account-token
+
+- name: Wait for argocd token secret to be populated (new cluster)
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: v1
+    kind: Secret
+    name: argocd
+    namespace: kube-system
+  register: _argocd_sa_secret
+  until: >
+    _argocd_sa_secret.resources is defined and
+    _argocd_sa_secret.resources | length > 0 and
+    _argocd_sa_secret.resources[0].data is defined and
+    _argocd_sa_secret.resources[0].data.token is defined
+  retries: 20
+  delay: 5
+
+- name: Set ArgoCD SA token and CA facts
+  ansible.builtin.set_fact:
+    _argocd_sa_token: "{{ _argocd_sa_secret.resources[0].data.token | b64decode }}"
+    _argocd_ca_data: "{{ _argocd_sa_secret.resources[0].data['ca.crt'] }}"
+  no_log: true
