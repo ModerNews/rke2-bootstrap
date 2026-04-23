@@ -1,11 +1,5 @@
 locals {
   vm_defaults = {
-    os_type    = "cloud-init"
-    start_at_node_boot = true
-    agent      = 1
-    full_clone = true
-    timeout    = "10m"
-
     cluster_bridge = "k8stools"
     storage_bridge = "vmbr0"
     storage_vlan   = 99
