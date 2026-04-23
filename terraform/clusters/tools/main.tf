@@ -4,13 +4,27 @@ terraform {
       source  = "telmate/proxmox"
       version = "3.0.2-rc07"
     }
+    vault = {
+      source  = "hashicorp/vault"
+      version = "~> 4.0"
+    }
   }
+}
+
+provider "vault" {
+  address = var.vault_addr
+  # token read from VAULT_TOKEN env var
+}
+
+data "vault_kv_secret_v2" "proxmox" {
+  mount = "secret"
+  name  = "terraform/proxmox"
 }
 
 provider "proxmox" {
   pm_api_url          = var.proxmox_api_url
-  pm_api_token_id     = var.proxmox_api_token_id
-  pm_api_token_secret = var.proxmox_api_token_secret
+  pm_api_token_id     = data.vault_kv_secret_v2.proxmox.data["token_id"]
+  pm_api_token_secret = data.vault_kv_secret_v2.proxmox.data["token_secret"]
   pm_tls_insecure     = true
 }
 

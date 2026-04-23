@@ -2,7 +2,8 @@
 *.tfstate
 *.tfstate.*
 .terraform/
-terraform.tfvars
+*.tfvars
+!terraform/clusters/**/terraform.tfvars
 # Keys
 *.pem
 # Ansible
