@@ -3,7 +3,7 @@
     kubeconfig: "{{ kubeconfig }}"
     api_version: argoproj.io/v1alpha1
     kind: Application
-    name: tools
+    name: bootstrap-tools
     namespace: argocd
   register: _tools_app
   until: >
@@ -45,7 +45,6 @@
 - name: Assert cutover has not already been applied
   ansible.builtin.assert:
     that:
-      - (_argocd_self_manage_app.resources | default([]) | length) == 0
       - (_appsets_root_app.resources | default([]) | length) == 0
       - >
         (_cutover_cluster_secret.resources | default([]) | length) == 0 or
@@ -54,19 +53,43 @@
       Cutover markers already exist. Refusing to rerun cutover automatically
       once the cluster is marked `bootstrap-stage=ready`.
 
-- name: Upgrade ArgoCD to production values
-  # --force recreates resources whose spec cannot be patched in-place
-  # (handles the one-time emptyDir → PVC volume type transition on repo-server)
+- name: Uninstall bootstrap ArgoCD
   ansible.builtin.command:
     argv:
       - helm
-      - upgrade
-      - --install
-      - --force
+      - uninstall
+      - argocd
+      - --namespace
+      - argocd
+      - --kubeconfig
+      - "{{ kubeconfig }}"
+      - --wait
+  when: (_argocd_self_manage_app.resources | default([]) | length) == 0
+  changed_when: true
+
+- name: Wait for ArgoCD application controller to be gone
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: apps/v1
+    kind: StatefulSet
+    name: argocd-application-controller
+    namespace: argocd
+  register: _app_ctrl_gone
+  until: (_app_ctrl_gone.resources | default([]) | length) == 0
+  retries: 60
+  delay: 10
+  when: (_argocd_self_manage_app.resources | default([]) | length) == 0
+
+- name: Install production ArgoCD
+  ansible.builtin.command:
+    argv:
+      - helm
+      - install
       - argocd
       - "{{ infra_helm_path }}/ArgoCD"
       - --namespace
       - argocd
+      - --create-namespace
       - --values
       - "{{ infra_helm_path }}/ArgoCD/values.yaml"
       - --values
@@ -76,6 +99,7 @@
       - --wait
       - --timeout
       - 600s
+  when: (_argocd_self_manage_app.resources | default([]) | length) == 0
   changed_when: true
 
 - name: Apply ArgoCD self-management Application
@@ -83,6 +107,23 @@
     kubeconfig: "{{ kubeconfig }}"
     definition: "{{ lookup('file', infra_helm_path + '/.argocd/argocd.yaml') | from_yaml }}"
   when: (_argocd_self_manage_app.resources | default([]) | length) == 0
+
+- name: Wait for ArgoCD self-management Application to be Healthy and Synced
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: argocd
+    namespace: argocd
+  register: _argocd_app
+  until: >
+    _argocd_app.resources | length > 0 and
+    _argocd_app.resources[0].status is defined and
+    _argocd_app.resources[0].status.health is defined and
+    _argocd_app.resources[0].status.health.status == 'Healthy' and
+    _argocd_app.resources[0].status.sync.status == 'Synced'
+  retries: 80
+  delay: 15
 
 - name: Apply ApplicationSets root Application
   kubernetes.core.k8s:
