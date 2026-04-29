@@ -166,6 +166,18 @@
   any_errors_fatal: true
   tags:
     - argocd_enroll
+  pre_tasks:
+    - name: Verify cluster bootstrap completed
+      ansible.builtin.stat:
+        path: "{{ kubeconfig }}"
+      register: _kubeconfig_stat
+
+    - name: Abort if kubeconfig artifact is missing
+      ansible.builtin.fail:
+        msg: >-
+          Kubeconfig not found at {{ kubeconfig }}. Either bootstrap did not complete
+          or pass -e kubeconfig=/path/to/kubeconfig when running argocd_enroll standalone.
+      when: not _kubeconfig_stat.stat.exists
   tasks:
     - name: Include ArgoCD enrollment prechecks
       ansible.builtin.include_tasks: argocd-enroll-precheck.yaml

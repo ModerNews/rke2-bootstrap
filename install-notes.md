@@ -48,20 +48,23 @@ Then install Ansible collections:
 ansible-galaxy collection install -r collections/requirements.yml
 ```
 
+> [!NOTE]
+> All commands below assume the working directory is `ansible/`.
+
 ### Full run
 
 ```sh
-ansible-playbook playbooks/main.yaml
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml
 ```
 
 ### Stage runs
 
 ```sh
-ansible-playbook playbooks/main.yaml --tags preflight
-ansible-playbook playbooks/main.yaml --tags host_prep
-ansible-playbook playbooks/main.yaml --tags master_init
-ansible-playbook playbooks/main.yaml --tags master_join
-ansible-playbook playbooks/main.yaml --tags workers
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags preflight
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags host_prep
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags master_init
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags master_join
+ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags workers
 ```
 
 > [!NOTE]
@@ -72,8 +75,56 @@ ansible-playbook playbooks/main.yaml --tags workers
 > After rebuilding VMs, SSH host keys change and preflight will fail with `Host key verification failed`.
 > Pass `-e refresh_host_keys=true` to clear stale entries and re-scan before connecting:
 > ```sh
-> ansible-playbook playbooks/main.yaml --tags preflight -e refresh_host_keys=true
+> ansible-playbook -i inventories/tools/ playbooks/rke2-full-install.yaml --tags preflight -e refresh_host_keys=true
 > ```
+
+---
+
+## Secondary Cluster (prod)
+
+The secondary cluster is provisioned and enrolled into the tools ArgoCD in a single playbook.
+The ArgoCD enrollment runs automatically at the end — no manual steps required.
+
+```mermaid
+flowchart LR
+    A[Preflight] --> B[Host prep]
+    B --> C[master-init]
+    C --> D[bootstrap-artifacts]
+    D --> E[master-join ×2<br/>serial: 1]
+    E --> F[Workers ×N<br/>parallel]
+    F --> G[ArgoCD enroll]
+```
+
+Two kubeconfigs must be provided at runtime:
+
+| Variable | Description |
+|---|---|
+| `kubeconfig` | Kubeconfig for the new (prod) cluster |
+| `argocd_parent_kubeconfig` | Kubeconfig for the tools cluster hosting ArgoCD |
+
+### Full run
+
+```sh
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml \
+  -e argocd_parent_kubeconfig=/path/to/tools.yaml
+```
+
+### Stage runs
+
+```sh
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags preflight
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags host_prep
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags master_init
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags master_join
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags workers
+ansible-playbook -i inventories/prod/ playbooks/rke2-join-install.yaml --tags argocd_enroll \
+  -e kubeconfig=/path/to/prod.yaml \
+  -e argocd_parent_kubeconfig=/path/to/tools.yaml
+```
+
+> [!NOTE]
+> `kubeconfig` is only required when running `argocd_enroll` standalone — during a full run it is
+> written to `.artifacts/prod/kubeconfig` by the bootstrap-artifacts stage and picked up automatically.
 
 ---
 
