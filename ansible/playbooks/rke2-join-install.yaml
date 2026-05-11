@@ -166,6 +166,7 @@
   any_errors_fatal: true
   tags:
     - argocd_enroll
+    - vault
   pre_tasks:
     - name: Verify cluster bootstrap completed
       ansible.builtin.stat:
@@ -183,6 +184,12 @@
       ansible.builtin.include_tasks: argocd-enroll-precheck.yaml
       tags:
         - argocd_enroll
+
+    - name: Include Vault Kubernetes auth setup for new cluster
+      ansible.builtin.include_tasks: argocd-vault-reconfig.yaml
+      tags:
+        - argocd_enroll
+        - vault
 
     - name: Include ArgoCD enrollment tasks for new cluster
       ansible.builtin.include_tasks: argocd-enroll-new-cluster.yaml

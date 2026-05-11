@@ -172,6 +172,7 @@
   any_errors_fatal: true
   tags:
     - argocd
+    - vault
     - bootstrap
   tasks:
     - name: Include ArgoCD preflight checks
@@ -184,6 +185,7 @@
       ansible.builtin.include_tasks: argocd-vault-reconfig.yaml
       tags:
         - argocd
+        - vault
         - bootstrap
 
     - name: Include ArgoCD install tasks

@@ -26,3 +26,4 @@ vip_prefix: 24
 # --- ArgoCD enrollment ---
 # argocd_parent_kubeconfig: passed at runtime via -e or set here
 argocd_cluster_group: tools
+vault_k8s_auth_path: kubernetes

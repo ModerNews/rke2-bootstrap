@@ -126,11 +126,24 @@
       {{ (lookup('ansible.builtin.file', kubeconfig) | from_yaml)
          .clusters[0].cluster.server }}
 
-- name: Reconfigure Vault Kubernetes auth backend
+- name: Enable Vault Kubernetes auth mount (idempotent)
   community.hashi_vault.vault_write:
     url: "{{ vault_addr }}"
     token: "{{ vault_token }}"
-    path: auth/kubernetes/config
+    path: "sys/auth/{{ vault_k8s_auth_path }}"
+    data:
+      type: kubernetes
+  register: _vault_auth_enable
+  failed_when:
+    - _vault_auth_enable.failed
+    - "'path is already in use' not in (_vault_auth_enable.msg | default(''))"
+  no_log: true
+
+- name: Configure Vault Kubernetes auth backend
+  community.hashi_vault.vault_write:
+    url: "{{ vault_addr }}"
+    token: "{{ vault_token }}"
+    path: "auth/{{ vault_k8s_auth_path }}/config"
     data:
       kubernetes_host: "{{ _k8s_api_server }}"
       kubernetes_ca_cert: "{{ _k8s_ca_cert }}"
